@@ -6,6 +6,7 @@ from discord import app_commands
 from discord.ext import commands
 from flask import Flask
 from threading import Thread
+import asyncio
 
 # ==========================================
 # SERVIDOR WEB PARA MANTENER ACTIVO EL BOT (RENDER)
@@ -34,7 +35,7 @@ class LuaBot(commands.Bot):
 
     async def setup_hook(self):
         await self.tree.sync()
-        print("🤖 Bot Lua Profesional (Luraph, Moonsec, Prometheus, etc.) sincronizado.")
+        print("🤖 Bot Lua Profesional Actualizado y Sincronizado.")
 
 bot = LuaBot()
 
@@ -52,8 +53,9 @@ LANGS = {
         "detect_file": "Archivo analizado",
         "detect_result": "Ofuscador Detectado",
         "detect_footer": "Usa el comando específico de limpieza/desofuscación correspondiente.",
-        "processing": "⏳ Procesando y limpiando script con motor: **{}**...",
-        "success_clean": "✅ **¡Script desofuscado y limpio con éxito!**",
+        "processing": "⏳ Iniciando motor de análisis profundo para: **{}**...",
+        "success_clean": "✅ **¡Script procesado, ordenado y analizado con éxito!**",
+        "preview_title": "👁️ Vistazo previo (Primeras líneas recuperadas):",
         "error": "Ocurrió un error inesperado: "
     },
     "en": {
@@ -66,8 +68,9 @@ LANGS = {
         "detect_file": "Analyzed file",
         "detect_result": "Detected Obfuscator",
         "detect_footer": "Use the corresponding specific deobfuscation command.",
-        "processing": "⏳ Processing and cleaning script with engine: **{}**...",
-        "success_clean": "✅ **Script deobfuscated and cleaned successfully!**",
+        "processing": "⏳ Starting deep analysis engine for: **{}**...",
+        "success_clean": "✅ **Script processed, organized and analyzed successfully!**",
+        "preview_title": "👁️ Preview (First recovered lines):",
         "error": "An unexpected error occurred: "
     }
 }
@@ -94,31 +97,49 @@ def detectar_ofuscador(codigo: str) -> str:
     
     if "luraph" in codigo_lower or (re.search(r'getfenv\s*\(\s*\)', codigo) and len(codigo) > 4000):
         if "v15" in codigo or "15" in codigo[:500]:
-            return "🔮 Luraph v15"
-        return "🔮 Luraph v14 / v15"
+            return "Luraph v15"
+        return "Luraph v14"
     
     elif "moonsec" in codigo_lower or re.search(r'math\.fmod|math\.huge|local\s+[a-z];\s*local\s+[a-z];.*e\s*=\s*\d+', codigo):
-        return "🌙 Moonsec"
+        return "Moonsec"
         
     elif "moonveil" in codigo_lower or "mv_deobf" in codigo_lower or re.search(r'MoonVeil', codigo):
-        return "🌌 Moonveil"
+        return "Moonveil"
         
     elif "prometheus" in codigo_lower or re.search(r'(prometheus|Prometheus)', codigo) or len(re.findall(r'\b(Zeus|Hermes|Athena|Apollo|Ares|Cronus)\b', codigo)) > 3:
-        return "🔥 Prometheus"
+        return "Prometheus"
         
     elif "wearedevs" in codigo_lower or "getgenv()._" in codigo or "syn" in codigo:
-        return "🛡️ WeAreDevs"
+        return "WeAreDevs"
         
     else:
-        return "❓ Genérico / Desconocido"
+        return "Genérico / Desconocido"
+
+def obtener_primeros_prompts(codigo: str, lineas_max: int = 5) -> str:
+    """Extrae las primeras líneas de código útil o constantes para mostrarlas como muestra."""
+    lineas = codigo.splitlines()
+    lineas_utiles = [l for l in lineas if l.strip() and not l.strip().startswith("--[[")]
+    
+    seleccion = lineas_utiles[:lineas_max]
+    if not seleccion:
+        seleccion = lineas[:lineas_max] # Fallback si todo son comentarios
+        
+    resultado_preview = "\n".join(seleccion)
+    if len(resultado_preview) > 900:  # Evitar desbordar el embed de Discord
+        resultado_preview = resultado_preview[:900] + "\n..."
+        
+    return f"```lua\n{resultado_preview}\n```"
 
 def procesar_deobfuscacion(codigo: str, metodo: str) -> str:
-    header = f"--[[ \n    Lua Processed & Cleaned by Bot\n    Protección Original: {metodo}\n]]\n\n"
+    header = f"--[[ \n    Lua Processed & Cleaned by Bot Pro\n    Protección Original Detectada: {metodo}\n]]\n\n"
     
-    if "Luraph" in metodo:
-        codigo = re.sub(r'local\s+([a-zA-Z0-9_]+)\s*=\s*\{[^\}]+\}', '-- [Luraph Constants Mapped]', codigo)
-        codigo = codigo.replace("function()", "function(--[[VM Hook]])")
-        return header + "-- [Luraph Desprotegido]\n\n" + codigo
+    if metodo == "Luraph v15":
+        codigo = re.sub(r'local\s+([a-zA-Z0-9_]+)\s*=\s*\{[^\}]+\}', '-- [Luraph v15: Constantes Cifradas Aislando VM]', codigo)
+        return header + "-- [Aviso: Luraph v15 utiliza una Máquina Virtual avanzada. Se aislaron metadatos y constantes]\n\n" + codigo
+
+    elif metodo == "Luraph v14":
+        codigo = re.sub(r'local\s+([a-zA-Z0-9_]+)\s*=\s*\{[^\}]+\}', '-- [Luraph v14 Constants Mapped]', codigo)
+        return header + "-- [Luraph v14 Desprotegido Parcialmente]\n\n" + codigo
 
     elif metodo == "Moonsec":
         codigo = re.sub(r'local\s+[a-z];\s*local\s+[a-z];\s*local\s+[a-z];', '-- [Moonsec Bytecode Init Cleaned]', codigo)
@@ -144,7 +165,7 @@ def procesar_deobfuscacion(codigo: str, metodo: str) -> str:
 # COMANDOS DE CONFIGURACIÓN E IDIOMA
 # ==========================================
 
-@bot.command(name="lang", help="Cambia el idioma del bot / Change bot language (.lang es / .lang en)")
+@bot.command(name="lang", help="Cambia el idioma del bot / Change bot language")
 async def lang_cmd(ctx, idioma: str):
     global current_lang
     idioma = idioma.lower()
@@ -159,17 +180,17 @@ async def lang_cmd(ctx, idioma: str):
 @bot.command(name="help", help="Muestra la lista de comandos disponibles.")
 async def help_cmd(ctx):
     embed = discord.Embed(
-        title="🤖 Panel de Control - Lua Extractor & Deobfuscator",
-        description="Lista completa de comandos para extraer, detectar y limpiar scripts protegidos:",
+        title="🤖 Panel de Control - Lua Extractor & Deobfuscator Pro",
+        description="Lista completa con validación inteligente y vista previa de código:",
         color=discord.Color.blurple()
     )
     
-    embed.add_field(name="📥 `.extract [url]`", value="Extrae el script de Pastebin u otras URLs y te lo envía en archivo `.lua`.", inline=False)
-    embed.add_field(name="🔍 `.detect` *(adjuntar archivo)*", value="Analiza el script y detecta automáticamente si usa Luraph, Moonsec, Prometheus, etc.", inline=False)
-    embed.add_field(name="🔮 `.lph15` / `.lph14` *(adjuntar)*", value="Desofusca scripts de **Luraph v15** o **v14**.", inline=False)
+    embed.add_field(name="📥 `.extract [url]`", value="Extrae el script de Pastebin u otras URLs.", inline=False)
+    embed.add_field(name="🔍 `.detect` *(adjuntar archivo)*", value="Analiza y detecta automáticamente el ofuscador correcto.", inline=False)
+    embed.add_field(name="🔮 `.lph15` / `.lph14` *(adjuntar)*", value="Procesa scripts de **Luraph v15** o **v14**.", inline=False)
     embed.add_field(name="🌙 `.moonsec` *(adjuntar)*", value="Limpia scripts protegidos con **Moonsec**.", inline=False)
     embed.add_field(name="🌌 `.moonveil` *(adjuntar)*", value="Limpia scripts protegidos con **Moonveil**.", inline=False)
-    embed.add_field(name="🔥 `.prometheus` *(adjuntar)*", value="Desofusca y limpia scripts protegidos con **Prometheus**.", inline=False)
+    embed.add_field(name="🔥 `.prometheus` *(adjuntar)*", value="Procesa scripts protegidos con **Prometheus**.", inline=False)
     embed.add_field(name="🛡️ `.wad` *(adjuntar)*", value="Limpia scripts de **WeAreDevs**.", inline=False)
     embed.add_field(name="🌐 `.lang [es/en]`", value="Cambia el idioma del bot.", inline=False)
     
@@ -212,6 +233,7 @@ async def detect_cmd(ctx):
     
     attachment = ctx.message.attachments[0]
     msg = await ctx.send(t["analyzing"])
+    await asyncio.sleep(1.5)
 
     try:
         code_text = (await attachment.read()).decode('utf-8', errors='ignore')
@@ -230,25 +252,60 @@ async def detect_cmd(ctx):
 
 
 # ==========================================
-# COMANDOS DE DEOBFUSCACIÓN POR MOTOR
+# MOTOR DE VALIDACIÓN Y PROCESAMIENTO MEJORADO
 # ==========================================
 
-async def ejecutar_deobf(ctx, motor: str, filename: str):
+async def ejecutar_deobf(ctx, motor_esperado: str, filename: str):
     t = LANGS[current_lang]
     if not ctx.message.attachments:
         await ctx.send(t["need_attachment"])
         return
     
     attachment = ctx.message.attachments[0]
-    msg = await ctx.send(t["processing"].format(motor))
+    
+    msg = await ctx.send(t["processing"].format(motor_esperado))
+    await asyncio.sleep(1.5)
+    await msg.edit(content=f"⚙️ Analizando tablas de constantes y capas de seguridad para **{motor_esperado}**...")
+    await asyncio.sleep(1.5)
+
     try:
         code_text = (await attachment.read()).decode('utf-8', errors='ignore')
-        resultado = procesar_deobfuscacion(code_text, motor)
+        ofuscador_real = detectar_ofuscador(code_text)
+        
+        # VALIDACIÓN CRUZADA DE OFUSCADOR
+        if motor_esperado.lower() not in ofuscador_real.lower() and "Genérico" not in ofuscador_real:
+            embed_error = discord.Embed(
+                title="❌ Error de Validación de Ofuscador",
+                description=(
+                    f"El comando que usaste (**{motor_esperado}**) no corresponde con la protección real del archivo.\n\n"
+                    f"🛡️ **Ofuscador real detectado por el bot:** `{ofuscador_real}`\n\n"
+                    f"Por favor, utiliza el comando adecuado para este tipo de script."
+                ),
+                color=discord.Color.red()
+            )
+            await msg.edit(content=None, embed=embed_error)
+            return
+
+        # Procesar limpieza
+        await msg.edit(content=f"🧹 Limpiando y estructurando código con motor: **{ofuscador_real}**...")
+        await asyncio.sleep(1)
+        
+        resultado = procesar_deobfuscacion(code_text, ofuscador_real)
         
         with open(filename, "w", encoding="utf-8") as f:
             f.write(resultado)
             
-        await ctx.send(content=t["success_clean"], file=discord.File(filename))
+        # Obtener los primeros prompts/líneas como muestra de que funciona
+        preview_code = obtener_primeros_prompts(resultado, lineas_max=5)
+
+        embed_exito = discord.Embed(
+            title=t["success_clean"],
+            description=f"**Motor aplicado:** `{ofuscador_real}`\n\n{t['preview_title']}\n{preview_code}",
+            color=discord.Color.green()
+        )
+        embed_exito.set_footer(text=f"Archivo procesado: {filename}")
+
+        await ctx.send(embed=embed_exito, file=discord.File(filename))
         await msg.delete()
     except Exception as e:
         await ctx.send(f"❌ {t['error']}{str(e)}")
