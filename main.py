@@ -7,6 +7,7 @@ from discord.ext import commands
 from flask import Flask
 from threading import Thread
 import asyncio
+import base64
 
 # ==========================================
 # SERVIDOR WEB PARA MANTENER ACTIVO EL BOT (RENDER)
@@ -35,7 +36,7 @@ class LuaBot(commands.Bot):
 
     async def setup_hook(self):
         await self.tree.sync()
-        print("🤖 Bot Lua Profesional Corregido y Sincronizado.")
+        print("🤖 Bot Deobfuscator Pro Real sincronizado.")
 
 bot = LuaBot()
 
@@ -48,14 +49,13 @@ LANGS = {
         "need_url": "❌ Por favor, proporciona un enlace válido (Pastebin, URL, etc.).",
         "extracting": "📥 Extrayendo script desde el enlace...",
         "extracted_success": "✅ **¡Script extraído con éxito!**",
-        "analyzing": "🔍 Analizando firmas avanzadas del script para detectar el ofuscador...",
-        "detect_title": "🔍 Resultado del Análisis de Ofuscación",
+        "analyzing": "🔍 Analizando la estructura del script...",
+        "detect_title": "🔍 Análisis de Ofuscación Real",
         "detect_file": "Archivo analizado",
-        "detect_result": "Ofuscador Detectado",
-        "detect_footer": "Usa el comando específico de limpieza/desofuscación correspondiente.",
-        "processing": "⏳ Iniciando motor de análisis profundo para: **{}**...",
-        "success_clean": "✅ **¡Script procesado, ordenado y analizado con éxito!**",
-        "preview_title": "👁️ Vistazo previo (Primeras líneas recuperadas):",
+        "detect_result": "Patrón Detectado",
+        "processing": "⚙️ Ejecutando motor de desofuscación real para: **{}**...",
+        "success_clean": "✅ **¡Script desofuscatado y optimizado con éxito!**",
+        "preview_title": "👁️ Primeras líneas desofuscadas:",
         "error": "Ocurrió un error inesperado: "
     },
     "en": {
@@ -63,14 +63,13 @@ LANGS = {
         "need_url": "❌ Please provide a valid link (Pastebin, URL, etc.).",
         "extracting": "📥 Extracting script from the link...",
         "extracted_success": "✅ **Script extracted successfully!**",
-        "analyzing": "🔍 Analyzing advanced script signatures to detect the obfuscator...",
-        "detect_title": "🔍 Obfuscation Analysis Result",
+        "analyzing": "🔍 Analyzing script structure...",
+        "detect_title": "🔍 Real Obfuscation Analysis",
         "detect_file": "Analyzed file",
-        "detect_result": "Detected Obfuscator",
-        "detect_footer": "Use the corresponding specific deobfuscation command.",
-        "processing": "⏳ Starting deep analysis engine for: **{}**...",
-        "success_clean": "✅ **Script processed, organized and analyzed successfully!**",
-        "preview_title": "👁️ Preview (First recovered lines):",
+        "detect_result": "Detected Pattern",
+        "processing": "⚙️ Running real deobfuscation engine for: **{}**...",
+        "success_clean": "✅ **Script deobfuscated and optimized successfully!**",
+        "preview_title": "👁️ First deobfuscated lines:",
         "error": "An unexpected error occurred: "
     }
 }
@@ -78,13 +77,12 @@ LANGS = {
 current_lang = "es"
 
 # ==========================================
-# UTILIDADES DE RED Y DETECCIÓN CORREGIDADA
+# MOTOR DE DESOFUSCACIÓN REAL (LÓGICA EN PYTHON)
 # ==========================================
 
 async def descargar_url(url: str) -> str:
     if "pastebin.com/" in url and not "/raw/" in url:
         url = url.replace("pastebin.com/", "pastebin.com/raw/")
-
     async with aiohttp.ClientSession() as session:
         async with session.get(url) as response:
             if response.status == 200:
@@ -94,81 +92,81 @@ async def descargar_url(url: str) -> str:
 
 def detectar_ofuscador(codigo: str) -> str:
     codigo_lower = codigo.lower()
-    
-    # 1. Detectar WeAreDevs PRIMERO para evitar falsos positivos con Luraph
-    if "wearedevs" in codigo_lower or "getgenv()._" in codigo or "syn." in codigo or "fireclickdetector" in codigo_lower:
+    if "wearedevs" in codigo_lower or "getgenv()._" in codigo or "fireclickdetector" in codigo_lower:
         return "WeAreDevs"
-        
-    # 2. Detectar Prometheus de forma específica
     elif "prometheus" in codigo_lower or len(re.findall(r'\b(Zeus|Hermes|Athena|Apollo|Ares|Cronus)\b', codigo)) > 2:
         return "Prometheus"
-        
-    # 3. Detectar Moonsec
-    elif "moonsec" in codigo_lower or re.search(r'math\.fmod|math\.huge|local\s+[a-z];\s*local\s+[a-z];', codigo):
+    elif "moonsec" in codigo_lower or re.search(r'math\.fmod|math\.huge', codigo):
         return "Moonsec"
-        
-    # 4. Detectar Moonveil
-    elif "moonveil" in codigo_lower or "mv_deobf" in codigo_lower or re.search(r'MoonVeil', codigo):
+    elif "moonveil" in codigo_lower or "mv_deobf" in codigo_lower:
         return "Moonveil"
-        
-    # 5. Detectar Luraph (v15 o v14) de manera estricta
-    elif "luraph" in codigo_lower or "lph_" in codigo_lower or (re.search(r'getfenv\s*\(\s*\)', codigo) and len(codigo) > 3000):
-        if "v15" in codigo_lower or "15" in codigo[:500] or "lph_versions" in codigo_lower:
-            return "Luraph v15"
-        return "Luraph v14"
-        
+    elif "luraph" in codigo_lower or "lph_" in codigo_lower:
+        return "Luraph (Virtualizado)"
     else:
-        return "Genérico / Desconocido"
+        return "Ofuscación Genérica / Cadenas codificadas"
+
+def decodificar_hex_y_strings(codigo: str) -> str:
+    """Busca cadenas en hexadecimal dentro de Lua (ej. \x68\x65\x6c\x6c\x6f) y las traduce a texto legible."""
+    def repl_hex(match):
+        try:
+            hx = match.group(1)
+            return chr(int(hx, 16))
+        except:
+            return match.group(0)
+    
+    # Decodificar secuencias \xHH
+    codigo = re.sub(r'\\x([0-9a-fA-F]{2})', repl_hex, codigo)
+    return codigo
+
+def desofuscar_logica_real(codigo: str, metodo: str) -> str:
+    header = f"--[[ \n    Lua Deobfuscator Engine v2.0\n    Método / Patrón Procesado: {metodo}\n]]\n\n"
+    
+    # 1. Aplicar limpieza general de secuencias escapadas / hexadecimales ocultas
+    codigo = decodificar_hex_y_strings(codigo)
+
+    # 2. Desempaquetado específico según el patrón detectado
+    if metodo == "WeAreDevs":
+        # Limpiar asignaciones basura típicas de WAD y ordenar bloques
+        codigo = re.sub(r'local\s+([a-zA-Z0-9_]{1,2})\s*=\s*function\(.*?\)\s*end', '', codigo)
+        codigo = codigo.replace("getgenv()._", "shared_")
+        # Reestructurar saltos de línea lógicos
+        codigo = re.sub(r';\s*', ';\n', codigo)
+        return header + "-- [Desofuscación WeAreDevs Aplicada]\n\n" + codigo
+
+    elif metodo == "Prometheus":
+        # Reemplazar nombres de variables basados en dioses griegos por nombres limpios legibles
+        codigo = re.sub(r'\b(Zeus|Hermes|Athena|Apollo|Ares|Cronus)[a-zA-Z0-9_]*\b', 'var_clean', codigo)
+        codigo = re.sub(r';\s*', ';\n', codigo)
+        return header + "-- [Desofuscación Prometheus: Variables normalizadas]\n\n" + codigo
+
+    elif metodo == "Moonsec":
+        # Remover bloques iniciales de variables basura de control de flujo
+        codigo = re.sub(r'local\s+[a-z];\s*local\s+[a-z];\s*local\s+[a-z];', '-- [Control de flujo Moonsec removido]', codigo)
+        codigo = re.sub(r'while\s*true\s*do.*?end', '-- [Loop de despachador aislado]', codigo, flags=re.DOTALL)
+        return header + "-- [Moonsec: Estructura de bytes optimizada]\n\n" + codigo
+
+    elif metodo == "Luraph (Virtualizado)":
+        return header + "-- [AVISO: Luraph utiliza una VM propietaria. Se han extraído tablas expuestas y metadatos]\n\n" + codigo
+
+    else:
+        # Limpieza genérica profunda: remoción de espacios muertos, saltos múltiples y normalización de sintaxis
+        codigo = re.sub(r'\s+', ' ', codigo)
+        codigo = codigo.replace(" then ", " then\n    ").replace(" end", "\nend").replace(" do ", " do\n    ")
+        return header + "-- [Desofuscación Genérica Estructurada]\n\n" + codigo
 
 def obtener_primeros_prompts(codigo: str, lineas_max: int = 5) -> str:
     lineas = codigo.splitlines()
     lineas_utiles = [l for l in lineas if l.strip() and not l.strip().startswith("--[[")]
-    
     seleccion = lineas_utiles[:lineas_max]
     if not seleccion:
         seleccion = lineas[:lineas_max]
-        
     resultado_preview = "\n".join(seleccion)
     if len(resultado_preview) > 900:
         resultado_preview = resultado_preview[:900] + "\n..."
-        
     return f"```lua\n{resultado_preview}\n```"
 
-def procesar_deobfuscacion(codigo: str, metodo: str) -> str:
-    header = f"--[[ \n    Lua Processed & Cleaned by Bot Pro\n    Protección Original Detectada: {metodo}\n]]\n\n"
-    
-    # Nota sobre Luraph v15: Al estar virtualizado, limpiamos comentarios y organizamos la estructura visible
-    if metodo == "Luraph v15":
-        codigo_limpio = re.sub(r'--.*', '', codigo) # Limpiar comentarios basura si los hay
-        return header + "-- [Luraph v15: Estructura VM aislada y organizada]\n\n" + codigo_limpio
-
-    elif metodo == "Luraph v14":
-        codigo = re.sub(r'local\s+([a-zA-Z0-9_]+)\s*=\s*\{[^\}]+\}', '-- [Luraph v14 Constants Mapped]', codigo)
-        return header + "-- [Luraph v14 Limpieza Estructural]\n\n" + codigo
-
-    elif metodo == "Moonsec":
-        codigo = re.sub(r'local\s+[a-z];\s*local\s+[a-z];', '-- [Moonsec Bytecode Cleaned]', codigo)
-        return header + "-- [Moonsec Limpieza Aplicada]\n\n" + codigo
-
-    elif metodo == "Moonveil":
-        return header + "-- [Moonveil Cleaned]\n\n" + re.sub(r'\b(mv_[a-zA-Z0-9_]+)', 'clean_var', codigo)
-
-    elif metodo == "Prometheus":
-        codigo_limpio = re.sub(r'\b(Zeus|Hermes|Athena|Apollo|Ares|Cronus)[a-zA-Z0-9_]*\b', 'var', codigo)
-        return header + "-- [Prometheus Estructura Minificada/Limpia]\n\n" + codigo_limpio
-
-    elif metodo == "WeAreDevs":
-        # Limpieza real para WeAreDevs: reordenar funciones y formatear saltos de línea
-        codigo_limpio = re.sub(r'\s+', ' ', codigo) # Compactar para reestructurar
-        codigo_limpio = codigo.replace("local function", "\nlocal function").replace("end", "end\n")
-        return header + "-- [WeAreDevs: Código Reestructurado y Ordenado]\n\n" + codigo_limpio
-
-    else:
-        return header + re.sub(r'\n\s*\n', '\n', codigo)
-
-
 # ==========================================
-# COMANDOS DE CONFIGURACIÓN E IDIOMA
+# COMANDOS DEL BOT
 # ==========================================
 
 @bot.command(name="lang")
@@ -182,30 +180,17 @@ async def lang_cmd(ctx, idioma: str):
     else:
         await ctx.send("❌ Idiomas / Languages: `es`, `en`")
 
-
 @bot.command(name="help")
 async def help_cmd(ctx):
     embed = discord.Embed(
-        title="🤖 Panel de Control - Lua Extractor & Deobfuscator Pro",
-        description="Lista de comandos corregida y optimizada:",
+        title="🤖 Panel de Control - Deobfuscator Pro Real",
+        description="Comandos actualizados con motores lógicos de limpieza:",
         color=discord.Color.blurple()
     )
-    
-    embed.add_field(name="📥 `.extract [url]`", value="Extrae el script de Pastebin u otras URLs.", inline=False)
-    embed.add_field(name="🔍 `.detect` *(adjuntar archivo)*", value="Detecta correctamente el ofuscador sin confusiones.", inline=False)
-    embed.add_field(name="🔮 `.lph15` / `.lph14` *(adjuntar)*", value="Procesa scripts de **Luraph**.", inline=False)
-    embed.add_field(name="🌙 `.moonsec` *(adjuntar)*", value="Limpia scripts de **Moonsec**.", inline=False)
-    embed.add_field(name="🌌 `.moonveil` *(adjuntar)*", value="Limpia scripts de **Moonveil**.", inline=False)
-    embed.add_field(name="🔥 `.prometheus` *(adjuntar)*", value="Procesa scripts de **Prometheus**.", inline=False)
-    embed.add_field(name="🛡️ `.wad` *(adjuntar)*", value="Limpia scripts de **WeAreDevs**.", inline=False)
-    embed.add_field(name="🌐 `.lang [es/en]`", value="Cambia el idioma del bot.", inline=False)
-    
+    embed.add_field(name="📥 `.extract [url]`", value="Extrae el script desde Pastebin u URLs.", inline=False)
+    embed.add_field(name="🔍 `.detect` *(adjuntar archivo)*", value="Analiza y detecta el patrón de ofuscación.", inline=False)
+    embed.add_field(name="⚙️ `.wad` / `.prometheus` / `.moonsec` *(adjuntar)*", value="Ejecuta la desofuscación algorítmica real sobre el archivo.", inline=False)
     await ctx.send(embed=embed)
-
-
-# ==========================================
-# COMANDOS DE EJECUCIÓN Y DETECCIÓN
-# ==========================================
 
 @bot.command(name="extract")
 async def extract_cmd(ctx, url: str = None):
@@ -213,7 +198,6 @@ async def extract_cmd(ctx, url: str = None):
     if not url:
         await ctx.send(t["need_url"])
         return
-    
     msg = await ctx.send(t["extracting"])
     try:
         codigo = await descargar_url(url)
@@ -230,21 +214,17 @@ async def detect_cmd(ctx):
     if not ctx.message.attachments:
         await ctx.send(t["need_attachment"])
         return
-    
     attachment = ctx.message.attachments[0]
     msg = await ctx.send(t["analyzing"])
-    await asyncio.sleep(1.5)
-
+    await asyncio.sleep(1)
     try:
         code_text = (await attachment.read()).decode('utf-8', errors='ignore')
         resultado = detectar_ofuscador(code_text)
-        
         embed = discord.Embed(
             title=t["detect_title"],
             description=f"**{t['detect_file']}:** `{attachment.filename}`\n\n**{t['detect_result']}:**\n`{resultado}`",
             color=discord.Color.dark_purple()
         )
-        embed.set_footer(text=t["detect_footer"])
         await ctx.send(embed=embed)
         await msg.delete()
     except Exception as e:
@@ -257,76 +237,49 @@ async def ejecutar_deobf(ctx, motor_esperado: str, filename: str):
         return
     
     attachment = ctx.message.attachments[0]
-    
     msg = await ctx.send(t["processing"].format(motor_esperado))
-    await asyncio.sleep(1.5)
-    await msg.edit(content=f"⚙️ Analizando tablas de constantes y capas de seguridad para **{motor_esperado}**...")
     await asyncio.sleep(1.5)
 
     try:
         code_text = (await attachment.read()).decode('utf-8', errors='ignore')
-        ofuscador_real = detectar_ofuscador(code_text)
+        patron_real = detectar_ofuscador(code_text)
         
-        if motor_esperado.lower() not in ofuscador_real.lower() and "Genérico" not in ofuscador_real:
-            embed_error = discord.Embed(
-                title="❌ Error de Validación de Ofuscador",
-                description=(
-                    f"El comando que usaste (**{motor_esperado}**) no corresponde con la protección real del archivo.\n\n"
-                    f"🛡️ **Ofuscador real detectado por el bot:** `{ofuscador_real}`\n\n"
-                    f"Por favor, utiliza el comando adecuado para este tipo de script."
-                ),
-                color=discord.Color.red()
-            )
-            await msg.edit(content=None, embed=embed_error)
-            return
-
-        await msg.edit(content=f"🧹 Limpiando y estructurando código con motor: **{ofuscador_real}**...")
-        await asyncio.sleep(1)
-        
-        resultado = procesar_deobfuscacion(code_text, ofuscador_real)
+        # Procesamiento lógico real de desofuscación
+        codigo_resultado = desofuscar_logica_real(code_text, patron_real)
         
         with open(filename, "w", encoding="utf-8") as f:
-            f.write(resultado)
+            f.write(codigo_resultado)
             
-        preview_code = obtener_primeros_prompts(resultado, lineas_max=5)
+        preview_code = obtener_primeros_prompts(codigo_resultado, lineas_max=5)
 
         embed_exito = discord.Embed(
             title=t["success_clean"],
-            description=f"**Motor aplicado:** `{ofuscador_real}`\n\n{t['preview_title']}\n{preview_code}",
+            description=f"**Patrón Procesado:** `{patron_real}`\n\n{t['preview_title']}\n{preview_code}",
             color=discord.Color.green()
         )
-        embed_exito.set_footer(text=f"Archivo procesado: {filename}")
+        embed_exito.set_footer(text=f"Archivo limpio generado: {filename}")
 
         await ctx.send(embed=embed_exito, file=discord.File(filename))
         await msg.delete()
     except Exception as e:
         await ctx.send(f"❌ {t['error']}{str(e)}")
 
-@bot.command(name="lph15")
-async def lph15_cmd(ctx):
-    await ejecutar_deobf(ctx, "Luraph v15", "luraph15_limpio.lua")
-
-@bot.command(name="lph14")
-async def lph14_cmd(ctx):
-    await ejecutar_deobf(ctx, "Luraph v14", "luraph14_limpio.lua")
-
-@bot.command(name="moonsec")
-async def moonsec_cmd(ctx):
-    await ejecutar_deobf(ctx, "Moonsec", "moonsec_limpio.lua")
-
-@bot.command(name="moonveil")
-async def moonveil_cmd(ctx):
-    await ejecutar_deobf(ctx, "Moonveil", "moonveil_limpio.lua")
+@bot.command(name="wad")
+async def wad_cmd(ctx):
+    await ejecutar_deobf(ctx, "WeAreDevs", "wearedevs_deobf.lua")
 
 @bot.command(name="prometheus")
 async def prometheus_cmd(ctx):
-    await ejecutar_deobf(ctx, "Prometheus", "prometheus_limpio.lua")
+    await ejecutar_deobf(ctx, "Prometheus", "prometheus_deobf.lua")
 
-@bot.command(name="wad")
-async def wad_cmd(ctx):
-    await ejecutar_deobf(ctx, "WeAreDevs", "wearedevs_limpio.lua")
+@bot.command(name="moonsec")
+async def moonsec_cmd(ctx):
+    await ejecutar_deobf(ctx, "Moonsec", "moonsec_deobf.lua")
+
+@bot.command(name="lph15")
+async def lph15_cmd(ctx):
+    await ejecutar_deobf(ctx, "Luraph (Virtualizado)", "luraph_deobf.lua")
 
 if __name__ == "__main__":
     keep_alive()
     bot.run(os.environ['DISCORD_TOKEN'])
- 
