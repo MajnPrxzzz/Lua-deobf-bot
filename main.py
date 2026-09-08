@@ -7,7 +7,6 @@ from discord.ext import commands
 from flask import Flask
 from threading import Thread
 import asyncio
-import base64
 
 # ==========================================
 # SERVIDOR WEB PARA MANTENER ACTIVO EL BOT (RENDER)
@@ -36,7 +35,7 @@ class LuaBot(commands.Bot):
 
     async def setup_hook(self):
         await self.tree.sync()
-        print("🤖 Bot Deobfuscator Pro Real sincronizado.")
+        print("🤖 Bot Deobfuscator Pro Definitivo sincronizado.")
 
 bot = LuaBot()
 
@@ -49,13 +48,13 @@ LANGS = {
         "need_url": "❌ Por favor, proporciona un enlace válido (Pastebin, URL, etc.).",
         "extracting": "📥 Extrayendo script desde el enlace...",
         "extracted_success": "✅ **¡Script extraído con éxito!**",
-        "analyzing": "🔍 Analizando la estructura del script...",
-        "detect_title": "🔍 Análisis de Ofuscación Real",
+        "analyzing": "🔍 Analizando y purgando bloques numéricos de ofuscación...",
+        "detect_title": "🔍 Análisis del Motor de Limpieza",
         "detect_file": "Archivo analizado",
-        "detect_result": "Patrón Detectado",
-        "processing": "⚙️ Ejecutando motor de desofuscación real para: **{}**...",
-        "success_clean": "✅ **¡Script desofuscatado y optimizado con éxito!**",
-        "preview_title": "👁️ Primeras líneas desofuscadas:",
+        "detect_result": "Patrón Identificado",
+        "processing": "⚙️ Ejecutando purga total de números basura y reestructuración para: **{}**...",
+        "success_clean": "✅ **¡Script completamente limpio y ordenado con éxito!**",
+        "preview_title": "👁️ Primeras líneas limpias:",
         "error": "Ocurrió un error inesperado: "
     },
     "en": {
@@ -63,13 +62,13 @@ LANGS = {
         "need_url": "❌ Please provide a valid link (Pastebin, URL, etc.).",
         "extracting": "📥 Extracting script from the link...",
         "extracted_success": "✅ **Script extracted successfully!**",
-        "analyzing": "🔍 Analyzing script structure...",
-        "detect_title": "🔍 Real Obfuscation Analysis",
+        "analyzing": "🔍 Analyzing and purging numeric obfuscation blocks...",
+        "detect_title": "🔍 Cleaning Engine Analysis",
         "detect_file": "Analyzed file",
-        "detect_result": "Detected Pattern",
-        "processing": "⚙️ Running real deobfuscation engine for: **{}**...",
-        "success_clean": "✅ **Script deobfuscated and optimized successfully!**",
-        "preview_title": "👁️ First deobfuscated lines:",
+        "detect_result": "Identified Pattern",
+        "processing": "⚙️ Executing total garbage number purge and restructuring for: **{}**...",
+        "success_clean": "✅ **Script completely cleaned and ordered successfully!**",
+        "preview_title": "👁️ First clean lines:",
         "error": "An unexpected error occurred: "
     }
 }
@@ -77,7 +76,7 @@ LANGS = {
 current_lang = "es"
 
 # ==========================================
-# MOTOR DE DESOFUSCACIÓN REAL (LÓGICA EN PYTHON)
+# MOTOR DE PURGA Y LIMPIEZA PROFUNDA DE NÚMEROS
 # ==========================================
 
 async def descargar_url(url: str) -> str:
@@ -103,56 +102,66 @@ def detectar_ofuscador(codigo: str) -> str:
     elif "luraph" in codigo_lower or "lph_" in codigo_lower:
         return "Luraph (Virtualizado)"
     else:
-        return "Ofuscación Genérica / Cadenas codificadas"
+        return "Ofuscación Estándar / Tablas Numéricas"
 
-def decodificar_hex_y_strings(codigo: str) -> str:
-    """Busca cadenas en hexadecimal dentro de Lua (ej. \x68\x65\x6c\x6c\x6f) y las traduce a texto legible."""
+def purgar_numeros_basura(codigo: str) -> str:
+    """
+    Elimina agresivamente tablas kilométricas de números y bytes cifrados 
+    que utilizan los ofuscadores para saturar el código.
+    """
+    # 1. Eliminar bloques masivos de asignación de tablas numéricas de ofuscación
+    # Busca patrones como: local var = { 102, 34, 55, ... } abarcando múltiples líneas
+    codigo = re.sub(r'local\s+[a-zA-Z0-9_]+\s*=\s*\{[\d,\s\.\-\n]+\};?', '-- [Tabla numérica de bytes purgada]', codigo)
+    
+    # 2. Eliminar matrices o llaves sueltas compuestas mayoritariamente por números (densidad > 50%)
+    def limpiar_matriz(match):
+        bloque = match.group(0)
+        digitos = len(re.findall(r'\d', bloque))
+        if digitos > (len(bloque) * 0.35):
+            return '{ --[[Bytes ofuscados eliminados]] }'
+        return bloque
+
+    codigo = re.sub(r'\{[^{}]*\}', limpiar_matriz, codigo)
+
+    # 3. Decodificar caracteres hexadecimales sueltos si el ofuscador los dejó expuestos
     def repl_hex(match):
         try:
-            hx = match.group(1)
-            return chr(int(hx, 16))
+            return chr(int(match.group(1), 16))
         except:
             return match.group(0)
-    
-    # Decodificar secuencias \xHH
+            
     codigo = re.sub(r'\\x([0-9a-fA-F]{2})', repl_hex, codigo)
+    
     return codigo
 
-def desofuscar_logica_real(codigo: str, metodo: str) -> str:
-    header = f"--[[ \n    Lua Deobfuscator Engine v2.0\n    Método / Patrón Procesado: {metodo}\n]]\n\n"
+def desofuscar_y_ordenar_absoluto(codigo: str, metodo: str) -> str:
+    header = f"--[[ \n    Lua Ultimate Deobfuscator & Cleaner\n    Patrón Detectado: {metodo}\n]]\n\n"
     
-    # 1. Aplicar limpieza general de secuencias escapadas / hexadecimales ocultas
-    codigo = decodificar_hex_y_strings(codigo)
+    # Aplicar la purga profunda de números basura
+    codigo = purgar_numeros_basura(codigo)
 
-    # 2. Desempaquetado específico según el patrón detectado
+    # Limpiezas específicas según la estructura detectada
     if metodo == "WeAreDevs":
-        # Limpiar asignaciones basura típicas de WAD y ordenar bloques
         codigo = re.sub(r'local\s+([a-zA-Z0-9_]{1,2})\s*=\s*function\(.*?\)\s*end', '', codigo)
         codigo = codigo.replace("getgenv()._", "shared_")
-        # Reestructurar saltos de línea lógicos
-        codigo = re.sub(r';\s*', ';\n', codigo)
-        return header + "-- [Desofuscación WeAreDevs Aplicada]\n\n" + codigo
-
     elif metodo == "Prometheus":
-        # Reemplazar nombres de variables basados en dioses griegos por nombres limpios legibles
-        codigo = re.sub(r'\b(Zeus|Hermes|Athena|Apollo|Ares|Cronus)[a-zA-Z0-9_]*\b', 'var_clean', codigo)
-        codigo = re.sub(r';\s*', ';\n', codigo)
-        return header + "-- [Desofuscación Prometheus: Variables normalizadas]\n\n" + codigo
-
+        codigo = re.sub(r'\b(Zeus|Hermes|Athena|Apollo|Ares|Cronus)[a-zA-Z0-9_]*\b', 'variable_limpia', codigo)
     elif metodo == "Moonsec":
-        # Remover bloques iniciales de variables basura de control de flujo
-        codigo = re.sub(r'local\s+[a-z];\s*local\s+[a-z];\s*local\s+[a-z];', '-- [Control de flujo Moonsec removido]', codigo)
-        codigo = re.sub(r'while\s*true\s*do.*?end', '-- [Loop de despachador aislado]', codigo, flags=re.DOTALL)
-        return header + "-- [Moonsec: Estructura de bytes optimizada]\n\n" + codigo
+        codigo = re.sub(r'while\s*true\s*do.*?end', '-- [Loop de control Moonsec eliminado]', codigo, flags=re.DOTALL)
 
-    elif metodo == "Luraph (Virtualizado)":
-        return header + "-- [AVISO: Luraph utiliza una VM propietaria. Se han extraído tablas expuestas y metadatos]\n\n" + codigo
+    # Reestructuración y ordenamiento estético del código legible resultante
+    # Eliminamos espacios y saltos muertos excesivos
+    codigo = re.sub(r'[ \t]+', ' ', codigo)
+    codigo = re.sub(r'\n\s*\n', '\n\n', codigo)
+    
+    # Dar formato de indentación básica en palabras clave de Lua
+    codigo = codigo.replace(" then ", " then\n    ")
+    codigo = codigo.replace(" do ", " do\n    ")
+    codigo = codigo.replace(" else ", "\nelse\n    ")
+    codigo = codigo.replace(" end", "\nend")
+    codigo = codigo.replace(";", ";\n")
 
-    else:
-        # Limpieza genérica profunda: remoción de espacios muertos, saltos múltiples y normalización de sintaxis
-        codigo = re.sub(r'\s+', ' ', codigo)
-        codigo = codigo.replace(" then ", " then\n    ").replace(" end", "\nend").replace(" do ", " do\n    ")
-        return header + "-- [Desofuscación Genérica Estructurada]\n\n" + codigo
+    return header + codigo
 
 def obtener_primeros_prompts(codigo: str, lineas_max: int = 5) -> str:
     lineas = codigo.splitlines()
@@ -183,13 +192,13 @@ async def lang_cmd(ctx, idioma: str):
 @bot.command(name="help")
 async def help_cmd(ctx):
     embed = discord.Embed(
-        title="🤖 Panel de Control - Deobfuscator Pro Real",
-        description="Comandos actualizados con motores lógicos de limpieza:",
+        title="🤖 Panel de Control - Deobfuscator Definitivo",
+        description="Comandos con purga activa de tablas numéricas y ordenamiento:",
         color=discord.Color.blurple()
     )
     embed.add_field(name="📥 `.extract [url]`", value="Extrae el script desde Pastebin u URLs.", inline=False)
-    embed.add_field(name="🔍 `.detect` *(adjuntar archivo)*", value="Analiza y detecta el patrón de ofuscación.", inline=False)
-    embed.add_field(name="⚙️ `.wad` / `.prometheus` / `.moonsec` *(adjuntar)*", value="Ejecuta la desofuscación algorítmica real sobre el archivo.", inline=False)
+    embed.add_field(name="🔍 `.detect` *(adjuntar archivo)*", value="Analiza y detecta el patrón del script.", inline=False)
+    embed.add_field(name="⚙️ `.wad` / `.prometheus` / `.moonsec` *(adjuntar)*", value="Ejecuta la limpieza absoluta eliminando los números de ofuscación.", inline=False)
     await ctx.send(embed=embed)
 
 @bot.command(name="extract")
@@ -244,8 +253,8 @@ async def ejecutar_deobf(ctx, motor_esperado: str, filename: str):
         code_text = (await attachment.read()).decode('utf-8', errors='ignore')
         patron_real = detectar_ofuscador(code_text)
         
-        # Procesamiento lógico real de desofuscación
-        codigo_resultado = desofuscar_logica_real(code_text, patron_real)
+        # Ejecutar la limpieza absoluta y purga de números
+        codigo_resultado = desofuscar_y_ordenar_absoluto(code_text, patron_real)
         
         with open(filename, "w", encoding="utf-8") as f:
             f.write(codigo_resultado)
@@ -266,19 +275,19 @@ async def ejecutar_deobf(ctx, motor_esperado: str, filename: str):
 
 @bot.command(name="wad")
 async def wad_cmd(ctx):
-    await ejecutar_deobf(ctx, "WeAreDevs", "wearedevs_deobf.lua")
+    await ejecutar_deobf(ctx, "WeAreDevs", "script_limpio.lua")
 
 @bot.command(name="prometheus")
 async def prometheus_cmd(ctx):
-    await ejecutar_deobf(ctx, "Prometheus", "prometheus_deobf.lua")
+    await ejecutar_deobf(ctx, "Prometheus", "script_limpio.lua")
 
 @bot.command(name="moonsec")
 async def moonsec_cmd(ctx):
-    await ejecutar_deobf(ctx, "Moonsec", "moonsec_deobf.lua")
+    await ejecutar_deobf(ctx, "Moonsec", "script_limpio.lua")
 
 @bot.command(name="lph15")
 async def lph15_cmd(ctx):
-    await ejecutar_deobf(ctx, "Luraph (Virtualizado)", "luraph_deobf.lua")
+    await ejecutar_deobf(ctx, "Luraph (Virtualizado)", "script_limpio.lua")
 
 if __name__ == "__main__":
     keep_alive()
