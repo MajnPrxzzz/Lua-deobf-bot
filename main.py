@@ -1,8 +1,8 @@
 import os
 import re
+import io
 import aiohttp
 import discord
-from discord import app_commands
 from discord.ext import commands
 from flask import Flask
 from threading import Thread
@@ -82,8 +82,9 @@ current_lang = "es"
 async def descargar_url(url: str) -> str:
     if "pastebin.com/" in url and not "/raw/" in url:
         url = url.replace("pastebin.com/", "pastebin.com/raw/")
+    
     async with aiohttp.ClientSession() as session:
-        async with session.get(url) as response:
+        async with session.get(url, timeout=10) as response:
             if response.status == 200:
                 return await response.text()
             else:
@@ -105,15 +106,8 @@ def detectar_ofuscador(codigo: str) -> str:
         return "Ofuscación Estándar / Tablas Numéricas"
 
 def purgar_numeros_basura(codigo: str) -> str:
-    """
-    Elimina agresivamente tablas kilométricas de números y bytes cifrados 
-    que utilizan los ofuscadores para saturar el código.
-    """
-    # 1. Eliminar bloques masivos de asignación de tablas numéricas de ofuscación
-    # Busca patrones como: local var = { 102, 34, 55, ... } abarcando múltiples líneas
     codigo = re.sub(r'local\s+[a-zA-Z0-9_]+\s*=\s*\{[\d,\s\.\-\n]+\};?', '-- [Tabla numérica de bytes purgada]', codigo)
     
-    # 2. Eliminar matrices o llaves sueltas compuestas mayoritariamente por números (densidad > 50%)
     def limpiar_matriz(match):
         bloque = match.group(0)
         digitos = len(re.findall(r'\d', bloque))
@@ -123,7 +117,6 @@ def purgar_numeros_basura(codigo: str) -> str:
 
     codigo = re.sub(r'\{[^{}]*\}', limpiar_matriz, codigo)
 
-    # 3. Decodificar caracteres hexadecimales sueltos si el ofuscador los dejó expuestos
     def repl_hex(match):
         try:
             return chr(int(match.group(1), 16))
@@ -131,16 +124,12 @@ def purgar_numeros_basura(codigo: str) -> str:
             return match.group(0)
             
     codigo = re.sub(r'\\x([0-9a-fA-F]{2})', repl_hex, codigo)
-    
     return codigo
 
 def desofuscar_y_ordenar_absoluto(codigo: str, metodo: str) -> str:
     header = f"--[[ \n    Lua Ultimate Deobfuscator & Cleaner\n    Patrón Detectado: {metodo}\n]]\n\n"
-    
-    # Aplicar la purga profunda de números basura
     codigo = purgar_numeros_basura(codigo)
 
-    # Limpiezas específicas según la estructura detectada
     if metodo == "WeAreDevs":
         codigo = re.sub(r'local\s+([a-zA-Z0-9_]{1,2})\s*=\s*function\(.*?\)\s*end', '', codigo)
         codigo = codigo.replace("getgenv()._", "shared_")
@@ -149,12 +138,9 @@ def desofuscar_y_ordenar_absoluto(codigo: str, metodo: str) -> str:
     elif metodo == "Moonsec":
         codigo = re.sub(r'while\s*true\s*do.*?end', '-- [Loop de control Moonsec eliminado]', codigo, flags=re.DOTALL)
 
-    # Reestructuración y ordenamiento estético del código legible resultante
-    # Eliminamos espacios y saltos muertos excesivos
     codigo = re.sub(r'[ \t]+', ' ', codigo)
     codigo = re.sub(r'\n\s*\n', '\n\n', codigo)
     
-    # Dar formato de indentación básica en palabras clave de Lua
     codigo = codigo.replace(" then ", " then\n    ")
     codigo = codigo.replace(" do ", " do\n    ")
     codigo = codigo.replace(" else ", "\nelse\n    ")
@@ -198,7 +184,7 @@ async def help_cmd(ctx):
     )
     embed.add_field(name="📥 `.extract [url]`", value="Extrae el script desde Pastebin u URLs.", inline=False)
     embed.add_field(name="🔍 `.detect` *(adjuntar archivo)*", value="Analiza y detecta el patrón del script.", inline=False)
-    embed.add_field(name="⚙️ `.wad` / `.prometheus` / `.moonsec` *(adjuntar)*", value="Ejecuta la limpieza absoluta eliminando los números de ofuscación.", inline=False)
+    embed.add_field(name="⚙️ `.wad` / `.prometheus` / `.moonsec` / `.lph15` *(adjuntar)*", value="Ejecuta la limpieza absoluta eliminando los números de ofuscación.", inline=False)
     await ctx.send(embed=embed)
 
 @bot.command(name="extract")
@@ -210,9 +196,10 @@ async def extract_cmd(ctx, url: str = None):
     msg = await ctx.send(t["extracting"])
     try:
         codigo = await descargar_url(url)
-        with open("script_extraido.lua", "w", encoding="utf-8") as f:
-            f.write(codigo)
-        await ctx.send(content=t["extracted_success"], file=discord.File("script_extraido.lua"))
+        file_bytes = io.BytesIO(codigo.encode('utf-8'))
+        file_bytes.seek(0)
+        
+        await ctx.send(content=t["extracted_success"], file=discord.File(file_bytes, filename="script_extraido.lua"))
         await msg.delete()
     except Exception as e:
         await ctx.send(f"❌ {t['error']}{str(e)}")
@@ -253,11 +240,11 @@ async def ejecutar_deobf(ctx, motor_esperado: str, filename: str):
         code_text = (await attachment.read()).decode('utf-8', errors='ignore')
         patron_real = detectar_ofuscador(code_text)
         
-        # Ejecutar la limpieza absoluta y purga de números
         codigo_resultado = desofuscar_y_ordenar_absoluto(code_text, patron_real)
         
-        with open(filename, "w", encoding="utf-8") as f:
-            f.write(codigo_resultado)
+        # Uso de BytesIO para evitar conflictos de concurrencia en archivos locales
+        file_bytes = io.BytesIO(codigo_resultado.encode('utf-8'))
+        file_bytes.seek(0)
             
         preview_code = obtener_primeros_prompts(codigo_resultado, lineas_max=5)
 
@@ -268,7 +255,7 @@ async def ejecutar_deobf(ctx, motor_esperado: str, filename: str):
         )
         embed_exito.set_footer(text=f"Archivo limpio generado: {filename}")
 
-        await ctx.send(embed=embed_exito, file=discord.File(filename))
+        await ctx.send(embed=embed_exito, file=discord.File(file_bytes, filename=filename))
         await msg.delete()
     except Exception as e:
         await ctx.send(f"❌ {t['error']}{str(e)}")
